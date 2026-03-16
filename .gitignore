@@ -3,3 +3,8 @@ bolt.db
 raft.db
 .idea
 .vscode
+**pyc
+
+comqtt_custom
+.claude/**
+**migrations**
