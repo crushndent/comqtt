@@ -1,0 +1,82 @@
+storage-way: 3
+storage-path: comqtt.db
+bridge-way: 0
+pprof-enable: false
+
+auth:
+  way: 1
+  datasource: 3
+  conf-path: ./config/auth-postgresql.yml
+  blacklist-path: ./config/blacklist.yml
+
+cluster:
+  discovery-way: 0
+  node-name: co-001
+  bind-addr: 127.0.0.1
+  bind-port: 7946
+  advertise-addr:
+  advertise-port:
+  members: [127.0.0.1:7946]
+  queue-depth: 10240
+  raft-impl: 0
+  raft-port: 8946
+  raft-dir: ./raft
+  raft-bootstrap: false
+  grpc-enable: false
+  grpc-port: 18946
+  inbound-pool-size: 40960
+  outbound-pool-size: 40960
+  inout-pool-nonblocking: false
+
+mqtt:
+  tcp: :1883
+  quic: ""
+  ws: :1882
+  http: :8080
+  tls:
+    ca-cert:
+    server-cert:
+    server-key:
+    zero-rtt: false
+  options:
+    client-write-buffer-size: 2048
+    client-read-buffer-size: 2048
+    sys-topic-resend-interval: 1
+    inline-client: false
+    capabilities:
+      compatibilities:
+        obscure-not-authorized: false
+        passive-client-disconnect: false
+        always-return-response: false
+        restore-sys-info-restart: false
+      maximum-message-expiry-interval: 86400
+      maximum-session-expiry-interval: 4294967295
+      maximum-client-writes-pending: 65535
+      maximum-packet-size: 0
+      receive-maximum: 1024
+      topic-alias-maximum: 65535
+      maximum-qos: 2
+      retain-available: 1
+      wildcard-sub-available: 1
+      sub-id-available: 1
+      shared-sub-available: 1
+      minimum-protocol-version: 3
+
+redis:
+  options:
+    addr: redis:6379
+    username:
+    password:
+    db: 0
+  prefix: comqtt
+
+log:
+  enable: true
+  format: 1
+  output: 0
+  filename: ./logs/comqtt.log
+  maxsize: 100
+  max-age: 30
+  max-backups: 10
+  compress: true
+  level: 0

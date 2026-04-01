@@ -1,0 +1,20 @@
+# Django core framework - using LTS version 4.2.x for stability and long-term support
+Django>=4.2,<5.0
+
+# PostgreSQL database adapter for Python
+psycopg2-binary
+
+# Password hashing library for secure password storage
+bcrypt
+
+# Optional Django utilities and extensions for development convenience
+django-extensions
+
+# MQTT client library for integration with MQTT broker
+paho-mqtt
+
+# Django testing integration for pytest framework
+pytest-django
+
+# Core pytest testing framework
+pytest

@@ -1,0 +1,99 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: comqtt-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: mqtt_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mqtt_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - comqtt-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: comqtt-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - comqtt-network
+
+  comqtt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: comqtt-broker
+    command: ["./comqtt", "--conf", "./config/comqtt-full.yml"]
+    ports:
+      - "1883:1883"
+      - "8080:8080"
+      - "1882:1882"
+    volumes:
+      - ./config/comqtt-postgres.yml:/app/config/comqtt-full.yml:ro
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=mqtt_db
+      - DB_USER=mqtt_db_user
+      - DB_PASSWORD=mqtt_db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - comqtt-network
+    restart: unless-stopped
+
+  django:
+    build:
+      context: ./django_admin
+      dockerfile: Dockerfile
+    container_name: comqtt-django
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-change-me-in-production}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-True}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.1,django}
+      - DB_NAME=mqtt_db
+      - DB_USER=mqtt_db_user
+      - DB_PASSWORD=mqtt_db_password
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    volumes:
+      - django_static:/app/staticfiles
+      - django_media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - comqtt-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  django_static:
+  django_media:
+
+networks:
+  comqtt-network:
+    driver: bridge

@@ -1,0 +1,29 @@
+auth-mode: 1  # 0 Anonymous, 1 Username, 2 ClientID
+acl-mode: 1    # 0 Anonymous, 1 Username, 2 ClientID
+
+dsn:
+  host: postgres
+  port: 5432
+  schema: mqtt_db
+  sslmode: disable
+  login-name: mqtt_db_user
+  login-password: mqtt_db_password
+  max-open-conns: 200
+  max-idle-conns: 100
+
+auth:
+  table: mqtt_user
+  user-column: username
+  password-column: password
+  allow-column: allow
+  password-hash: 1  # 1 bcrypt - matches Django's bcrypt hashing
+  hash-key:
+
+acl:
+  table: mqtt_acl
+  user-column: username
+  topic-column: topic
+  access-column: access
+  publish: 1
+  subscribe: 2
+  pubsub: 3
