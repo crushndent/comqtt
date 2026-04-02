@@ -126,13 +126,13 @@ class TestMqttAcl:
     def test_acl_creation(self, db, mqtt_user):
         """Test basic ACL creation."""
         acl = MqttAcl.objects.create(
-            username=mqtt_user.username,
+            user=mqtt_user,
             topic='test/topic',
             access=2  # Read
         )
 
         assert acl.pk is not None
-        assert acl.username == mqtt_user.username
+        assert acl.user == mqtt_user
         assert acl.topic == 'test/topic'
         assert acl.access == 2
 
@@ -151,7 +151,7 @@ class TestMqttAcl:
 
         for level, label in access_levels:
             acl = MqttAcl.objects.create(
-                username=mqtt_user.username,
+                user=mqtt_user,
                 topic=f'test/topic/{level}',
                 access=level
             )
@@ -161,23 +161,23 @@ class TestMqttAcl:
     def test_default_access_level(self, db, mqtt_user):
         """Test default access level is Read (2)."""
         acl = MqttAcl.objects.create(
-            username=mqtt_user.username,
+            user=mqtt_user,
             topic='test/default'
         )
 
         assert acl.access == 2
 
     def test_unique_user_topic_constraint(self, db, mqtt_user):
-        """Test that (username, topic) combination must be unique."""
+        """Test that (user, topic) combination must be unique."""
         MqttAcl.objects.create(
-            username=mqtt_user.username,
+            user=mqtt_user,
             topic='unique/topic',
             access=2
         )
 
         with pytest.raises(IntegrityError):
             MqttAcl.objects.create(
-                username=mqtt_user.username,
+                user=mqtt_user,
                 topic='unique/topic',
                 access=1
             )
@@ -187,24 +187,24 @@ class TestMqttAcl:
         user2 = mqtt_user_with_password('user2', 'password2')
 
         acl1 = MqttAcl.objects.create(
-            username=mqtt_user.username,
+            user=mqtt_user,
             topic='shared/topic',
             access=2
         )
 
         acl2 = MqttAcl.objects.create(
-            username=user2.username,
+            user=user2,
             topic='shared/topic',
             access=1
         )
 
         assert acl1.topic == acl2.topic
-        assert acl1.username != acl2.username
+        assert acl1.user != acl2.user
 
     def test_acl_cascade_delete(self, db, mqtt_user):
         """Test ACLs are deleted when user is deleted (via FK constraint)."""
         acl = MqttAcl.objects.create(
-            username=mqtt_user.username,
+            user=mqtt_user,
             topic='cascade/test',
             access=3
         )
@@ -225,16 +225,16 @@ class TestMqttAcl:
 
         for topic, access in topics:
             MqttAcl.objects.create(
-                username=mqtt_user.username,
+                user=mqtt_user,
                 topic=topic,
                 access=access
             )
 
-        assert MqttAcl.objects.filter(username=mqtt_user.username).count() == 3
+        assert MqttAcl.objects.filter(user=mqtt_user).count() == 3
 
-    def test_filter_by_username(self, mqtt_acl, mqtt_user):
-        """Test filtering ACLs by username."""
-        acls = MqttAcl.objects.filter(username=mqtt_user.username)
+    def test_filter_by_user(self, mqtt_acl, mqtt_user):
+        """Test filtering ACLs by user."""
+        acls = MqttAcl.objects.filter(user=mqtt_user)
         assert mqtt_acl in acls
 
 
@@ -292,7 +292,7 @@ class TestNode:
     def test_node_with_user(self, node_with_user, mqtt_user):
         """Test Node linked to an MQTT user."""
         assert node_with_user.user == mqtt_user
-        assert node_with_user.node == mqtt_user.node
+        assert mqtt_user.node == node_with_user
 
     def test_node_status_choices(self, db):
         """Test status choices."""

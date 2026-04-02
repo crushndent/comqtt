@@ -7,17 +7,11 @@ from .models import MqttUser, MqttAcl, Node
 from .node_provisioning import provision_node, regenerate_node_credentials
 
 
-class MqttAclInline(admin.StackedInline):
+class MqttAclInline(admin.TabularInline):
     model = MqttAcl
     extra = 1
-    fields = ('username', 'topic', 'access', 'created', 'updated')
+    fields = ('topic', 'access', 'created', 'updated')
     readonly_fields = ('created', 'updated')
-
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-        if obj:
-            formset.form.base_fields['username'].initial = obj.username
-        return formset
 
 
 class MqttUserAdminForm(forms.ModelForm):
@@ -40,8 +34,16 @@ class MqttUserAdminForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         password = self.cleaned_data.get('password')
-        if password:
+        
+        # Only update password if a new one is provided
+        # Preserve existing password when editing without providing a new one
+        if password and password.strip():
             user.set_password(password)
+        elif self.instance and self.instance.pk:
+            # Restore the original password hash if no new password provided
+            original_user = MqttUser.objects.get(pk=self.instance.pk)
+            user.password = original_user.password
+        
         if commit:
             user.save()
         return user
@@ -54,18 +56,18 @@ class MqttUserAdmin(admin.ModelAdmin):
     list_filter = ('allow', 'created')
     search_fields = ('username',)
     readonly_fields = ('created', 'updated')
-    inlines = [MqttAclInline]
     actions = ['reset_password']
+    inlines = [MqttAclInline]
 
     def acl_count(self, obj):
-        return MqttAcl.objects.filter(username=obj.username).count()
+        return MqttAcl.objects.filter(user=obj).count()
     acl_count.short_description = 'ACL Count'
 
     @admin.action(description='Reset password for selected users')
     def reset_password(self, request, queryset):
         updated = 0
         for user in queryset:
-            temp_password = MqttUser.objects.make_random_password(length=12)
+            temp_password = MqttUser.make_random_password(length=12)
             user.set_password(temp_password)
             user.save()
             self.message_user(
@@ -87,9 +89,10 @@ class MqttUserAdmin(admin.ModelAdmin):
 
 @admin.register(MqttAcl)
 class MqttAclAdmin(admin.ModelAdmin):
-    list_display = ('username', 'topic', 'access', 'created')
+    list_display = ('user', 'topic', 'access', 'created')
     list_filter = ('access', 'created')
-    search_fields = ('username', 'topic')
+    search_fields = ('user__username', 'topic')
+    raw_id_fields = ('user',)
 
 
 @admin.register(Node)

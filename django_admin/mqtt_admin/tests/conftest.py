@@ -28,7 +28,7 @@ def mqtt_user_with_password(db):
 def mqtt_acl(db, mqtt_user):
     """Create a basic ACL entry for testing."""
     acl = MqttAcl.objects.create(
-        username=mqtt_user.username,
+        user=mqtt_user,
         topic='test/topic/#',
         access=3  # Read + Write
     )
@@ -47,7 +47,7 @@ def multiple_acls(db, mqtt_user):
     ]
     for topic, access in topics:
         acl = MqttAcl.objects.create(
-            username=mqtt_user.username,
+            user=mqtt_user,
             topic=topic,
             access=access
         )

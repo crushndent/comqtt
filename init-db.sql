@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS mqtt_acl (
 CREATE INDEX IF NOT EXISTS idx_mqtt_acl_username ON mqtt_acl(username);
 CREATE INDEX IF NOT EXISTS idx_mqtt_acl_topic ON mqtt_acl(topic);
 
+-- Create unique constraint on (username, topic) to prevent duplicate ACL entries
+ALTER TABLE mqtt_acl DROP CONSTRAINT IF EXISTS unique_user_topic;
+ALTER TABLE mqtt_acl ADD CONSTRAINT unique_user_topic UNIQUE (username, topic);
+
 -- Create mqtt_node table for device/node management
 CREATE TABLE IF NOT EXISTS mqtt_node (
     id BIGSERIAL PRIMARY KEY,

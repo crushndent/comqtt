@@ -40,7 +40,7 @@ class MqttAcl(models.Model):
     ]
 
     id = models.BigAutoField(primary_key=True)
-    username = models.CharField(max_length=255)
+    user = models.ForeignKey(MqttUser, on_delete=models.CASCADE, db_column='username', to_field='username', related_name='acls')
     topic = models.CharField(max_length=255)
     access = models.SmallIntegerField(default=2, choices=ACCESS_CHOICES)
     created = models.DateTimeField(auto_now_add=True)
@@ -51,9 +51,10 @@ class MqttAcl(models.Model):
         managed = True
         verbose_name = 'MQTT ACL'
         verbose_name_plural = 'MQTT ACLs'
+        unique_together = [['user', 'topic']]
 
     def __str__(self):
-        return f"{self.username} - {self.topic}"
+        return f"{self.user.username} - {self.topic}"
 
 
 class Node(models.Model):
