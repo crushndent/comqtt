@@ -9,7 +9,6 @@ import (
 	"github.com/wind-c/comqtt/v2/mqtt"
 	"github.com/wind-c/comqtt/v2/mqtt/hooks/auth"
 	"github.com/wind-c/comqtt/v2/mqtt/packets"
-	"github.com/wind-c/comqtt/v2/plugin"
 	pa "github.com/wind-c/comqtt/v2/plugin/auth"
 )
 
@@ -179,18 +178,8 @@ func (a *Auth) OnACLCheck(cl *mqtt.Client, topic string, write bool) bool {
 	}
 
 	fam := make(map[string]auth.Access)
-	for rows.Next() {
-		var filter string
-		var access byte
-		if err := rows.Scan(&filter, &access); err != nil {
-			continue
-		}
-
-		if !plugin.MatchTopic(filter, topic) {
-			continue
-		}
-
-		fam[filter] = auth.Access(access)
+	if err := pa.CollectAcl(rows, topic, fam, false); err != nil {
+		return false
 	}
 
 	return pa.CheckAcl(fam, write)

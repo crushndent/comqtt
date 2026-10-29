@@ -50,6 +50,8 @@ func CheckAcl(tam map[string]auth.Access, write bool) bool {
 		if l > maxLen {
 			maxLen = l
 			final = ok
+		} else if l == maxLen && !ok {
+			final = false // equally long filters conflict, deny wins
 		}
 	}
 
