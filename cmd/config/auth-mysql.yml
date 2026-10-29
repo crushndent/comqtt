@@ -24,3 +24,14 @@ acl:
   user-column: username # or client_id, set this parameter based on the actual field name
   topic-column: topic
   access-column: access  # 0 Deny, 1 subscribe (Read), 2 publish (Write), 3 pubsub (ReadWrite)
+
+# Optional group acl. A user's own acl rules win; when none matches the topic,
+# the rules of all the user's groups are combined. Uncomment to enable.
+#group:
+#  member-table: user_group
+#  user-column: username  # or client_id, matching acl-mode
+#  group-column: groupname
+#  acl-table: group_acl
+#  acl-group-column: groupname
+#  topic-column: topic
+#  access-column: access  # 0 Deny, 1 subscribe (Read), 2 publish (Write), 3 pubsub (ReadWrite)

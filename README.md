@@ -349,6 +349,30 @@ CREATE TABLE acl (
 CREATE INDEX acl_username_idx ON acl(username);
 COMMIT;
 ```
+### Group ACL
+Redis, Mysql and Postgresql can optionally grant topic permissions to groups as well as to individual users (or client ids, following `acl-mode`). It is disabled unless configured, so existing configs and schemas keep working unchanged.
+
+- A user's own ACL rules always win: groups are only consulted when none of the user's rules matches the topic, so a user rule can narrow or deny what a group grants.
+- When several groups have a rule for the same filter, their access is combined, e.g. subscribe from one group and publish from another gives pubsub.
+- Among matching rules the most specific (longest) filter wins; equally specific conflicting rules deny.
+- A wildcard subscription is only allowed if the rules cover every topic it could match, e.g. `a/+` does not allow subscribing to `a/#`. Shared subscriptions (`$share/<group>/<filter>`) are checked on `<filter>`.
+
+Mysql / Postgresql: add a `group` section to the plugin config (see [auth-mysql.yml](cmd/config/auth-mysql.yml)) and two tables (Postgresql syntax shown, see [init.sql](plugin/auth/mysql/testdata/init.sql) for Mysql):
+```sql
+CREATE TABLE user_group (username TEXT NOT NULL, groupname TEXT NOT NULL, UNIQUE (username, groupname));
+CREATE TABLE group_acl (groupname TEXT NOT NULL, topic TEXT NOT NULL, access SMALLINT DEFAULT 3 NOT NULL);
+CREATE INDEX group_acl_groupname_idx ON group_acl(groupname);
+
+INSERT INTO user_group VALUES ('edge1', 'plant1-edge');
+INSERT INTO group_acl VALUES ('plant1-edge', 'spBv1.0/plant1/#', 3);
+```
+Redis: set `group-prefix` (and optionally `group-acl-prefix`, default `comqtt:group-acl`) in the plugin config, then
+```
+SADD comqtt-group:edge1 plant1-edge
+HSET comqtt-group-acl:plant1-edge spBv1.0/plant1/# 3
+```
+Http: the acl endpoint already returns the full `{"filter": access}` map for a user, so it can include group rules itself.
+
 ### Access Control
 #### Allow Hook
 By default, Comqtt uses a DENY-ALL access control rule. To allow connections, this must overwritten using an Access Control hook. The simplest of these hooks is the `auth.AllowAll` hook, which provides ALLOW-ALL rules to all connections, subscriptions, and publishing. It's also the simplest hook to use:
