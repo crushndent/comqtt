@@ -133,3 +133,75 @@ func TestOnACLCheck(t *testing.T) {
 	result = a.OnACLCheck(client, topic2, false) //subscribe
 	require.Equal(t, true, result)
 }
+
+func TestOnACLCheckGroups(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+	a := new(Auth)
+	a.SetOpts(logger, nil)
+	err := a.Init(&Options{
+		AuthMode:       byte(auth.AuthUsername),
+		AclMode:        byte(auth.AuthUsername),
+		GroupKeyPrefix: "comqtt:group",
+		RedisOptions:   &redisOptions{Addr: s.Addr()},
+	})
+	require.NoError(t, err)
+	defer teardown(t, a)
+	require.Equal(t, defaultGroupAclKeyPrefix, a.config.GroupAclKeyPrefix)
+
+	ctx := context.Background()
+	require.NoError(t, a.db.HSet(ctx, a.getAclKey("zhangsan"), "topictest/1", byte(auth.WriteOnly)).Err())
+	require.NoError(t, a.db.SAdd(ctx, a.getGroupKey("zhangsan"), "sensors", "sparkplug").Err())
+	require.NoError(t, a.db.HSet(ctx, a.getGroupAclKey("sensors"),
+		"topictest/1", byte(auth.ReadWrite),
+		"sensors/#", byte(auth.ReadOnly),
+		"sensors/+/cmd", byte(auth.WriteOnly),
+		"shared/x", byte(auth.ReadOnly)).Err())
+	require.NoError(t, a.db.HSet(ctx, a.getGroupAclKey("sparkplug"),
+		"shared/x", byte(auth.WriteOnly),
+		"spBv1.0/plant1/#", byte(auth.ReadWrite)).Err())
+	require.NoError(t, a.db.HSet(ctx, a.getGroupAclKey("nobody"), "secret/#", byte(auth.ReadWrite)).Err())
+
+	tt := []struct {
+		topic string
+		write bool
+		want  bool
+	}{
+		{"topictest/1", true, true},               // user rule
+		{"topictest/1", false, false},             // user rule wins over the group's ReadWrite
+		{"topictest/2", true, false},              // no rule
+		{"sensors/a/temp", false, true},           // group ReadOnly
+		{"sensors/a/temp", true, false},           // group ReadOnly
+		{"sensors/a/cmd", true, true},             // more specific group WriteOnly
+		{"sensors/a/cmd", false, false},           // more specific group WriteOnly
+		{"sensors/#", false, true},                // wildcard subscription inside the grant
+		{"$share/g1/sensors/+/temp", false, true}, // shared subscription
+		{"#", false, false},                       // wildcard subscription wider than any grant
+		{"shared/x", false, true},                 // ReadOnly from one group
+		{"shared/x", true, true},                  // WriteOnly from another group
+		{"spBv1.0/plant1/NBIRTH/edge1", true, true},
+		{"spBv1.0/plant1/DDATA/edge1/dev1", false, true},
+		{"spBv1.0/plant2/NBIRTH/edge1", true, false},
+		{"spBv1.0/#", false, false},
+		{"secret/a", false, false}, // granted to a group the user is not in
+	}
+	for _, tx := range tt {
+		require.Equal(t, tx.want, a.OnACLCheck(client, tx.topic, tx.write), "topic %s write %v", tx.topic, tx.write)
+	}
+
+	// a user without groups or rules is denied
+	other := &mqtt.Client{Properties: mqtt.ClientProperties{Username: []byte("lisi")}}
+	require.False(t, a.OnACLCheck(other, "sensors/a/temp", false))
+}
+
+func TestOnACLCheckGroupsDisabled(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+	a := newAuth(t, s.Addr())
+	defer teardown(t, a)
+
+	ctx := context.Background()
+	require.NoError(t, a.db.SAdd(ctx, "comqtt:group:zhangsan", "sensors").Err())
+	require.NoError(t, a.db.HSet(ctx, defaultGroupAclKeyPrefix+":sensors", "sensors/#", byte(auth.ReadOnly)).Err())
+	require.False(t, a.OnACLCheck(client, "sensors/a/temp", false))
+}

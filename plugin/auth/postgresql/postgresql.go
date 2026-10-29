@@ -14,11 +14,12 @@ import (
 
 type Options struct {
 	pa.Blacklist
-	AuthMode byte      `json:"auth-mode" yaml:"auth-mode"`
-	AclMode  byte      `json:"acl-mode" yaml:"acl-mode"`
-	Dsn      DsnInfo   `json:"dsn" yaml:"dsn"`
-	Auth     AuthTable `json:"auth" yaml:"auth"`
-	Acl      AclTable  `json:"acl" yaml:"acl"`
+	AuthMode byte          `json:"auth-mode" yaml:"auth-mode"`
+	AclMode  byte          `json:"acl-mode" yaml:"acl-mode"`
+	Dsn      DsnInfo       `json:"dsn" yaml:"dsn"`
+	Auth     AuthTable     `json:"auth" yaml:"auth"`
+	Acl      AclTable      `json:"acl" yaml:"acl"`
+	Group    pa.GroupTable `json:"group" yaml:"group"` // optional group acl, disabled when empty
 }
 
 type DsnInfo struct {
@@ -51,10 +52,11 @@ type AclTable struct {
 // Auth is an auth controller which allows access to all connections and topics.
 type Auth struct {
 	mqtt.HookBase
-	config   *Options
-	db       *sqlx.DB
-	authStmt *sqlx.Stmt
-	aclStmt  *sqlx.Stmt
+	config    *Options
+	db        *sqlx.DB
+	authStmt  *sqlx.Stmt
+	aclStmt   *sqlx.Stmt
+	groupStmt *sqlx.Stmt
 }
 
 // ID returns the ID of the hook.
@@ -105,6 +107,14 @@ func (a *Auth) Init(config any) error {
 		a.Log.Error("Unable to create prepared statement for acl-sql", "aclStmt", aclSql)
 		return err
 	}
+	if a.config.Group.Enabled() {
+		groupSql := a.config.Group.AclSql("$1")
+		a.groupStmt, err = sqlxDB.Preparex(groupSql)
+		if err != nil {
+			a.Log.Error("Unable to create prepared statement for group-acl-sql", "groupSql", groupSql)
+			return err
+		}
+	}
 	a.db = sqlxDB
 	return nil
 }
@@ -114,6 +124,9 @@ func (a *Auth) Stop() error {
 	a.Log.Info("disconnecting from postgresql")
 	a.authStmt.Close()
 	a.aclStmt.Close()
+	if a.groupStmt != nil {
+		a.groupStmt.Close()
+	}
 	return a.db.Close()
 }
 
@@ -182,5 +195,20 @@ func (a *Auth) OnACLCheck(cl *mqtt.Client, topic string, write bool) bool {
 		return false
 	}
 
-	return pa.CheckAcl(fam, write)
+	if len(fam) > 0 || a.groupStmt == nil {
+		return pa.CheckAcl(fam, write)
+	}
+
+	// no user rule matches, fall back to the rules of the user's groups
+	rows, err = a.groupStmt.Query(key)
+	if err != nil {
+		return false
+	}
+
+	gam := make(map[string]auth.Access)
+	if err := pa.CollectAcl(rows, topic, gam, true); err != nil {
+		return false
+	}
+
+	return pa.CheckUserGroupAcl(fam, gam, write)
 }

@@ -27,3 +27,12 @@ acl:
   publish: 1  #result returned with publish permission
   subscribe: 2  #result returned with subscribe permission
   pubsub: 3  #result returned with publish and subscribe permission
+
+group:  # optional group acl, remove to disable
+  member-table: user_group
+  user-column: username
+  group-column: groupname
+  acl-table: group_acl
+  acl-group-column: groupname
+  topic-column: topic
+  access-column: access  # 0 Deny, 1 subscribe (Read), 2 publish (Write), 3 pubsub (ReadWrite)
