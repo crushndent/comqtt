@@ -1,3 +1,42 @@
 apiVersion: v1
-entries: {}
-generated: "1970-01-01T00:00:00Z"
+entries:
+  comqtt:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: extraEnv for passing COMQTT_* env overrides (comqtt >= 2.6.6) to the broker container.
+        - kind: added
+          description: OCI chart publishing to GHCR (oci://ghcr.io/wind-c/charts/comqtt).
+        - kind: added
+          description: Gateway API support, HTTPRoute (REST API + /metrics) and TCPRoute (MQTT).
+        - kind: deprecated
+          description: ingress.* (use gateway.* instead).
+      artifacthub.io/license: MIT
+    apiVersion: v2
+    appVersion: 2.6.6
+    created: "2026-10-29T00:01:22.24747078Z"
+    description: 'comqtt — a lightweight, high-performance MQTT broker (v3.0/v3.1.1/v5.0)
+      supporting standalone and clustered (Raft + Gossip) deployments. '
+    digest: a0a076b125120400cee24839a24f0334a0f0d5cbec35955cc54a68d2e03a4d1a
+    home: https://github.com/wind-c/comqtt
+    icon: https://raw.githubusercontent.com/wind-c/comqtt/main/README.md
+    keywords:
+    - mqtt
+    - broker
+    - iot
+    - messaging
+    - pub-sub
+    - cluster
+    - raft
+    kubeVersion: '>=1.23.0-0'
+    maintainers:
+    - name: comqtt community
+      url: https://github.com/wind-c/comqtt
+    name: comqtt
+    sources:
+    - https://github.com/wind-c/comqtt
+    type: application
+    urls:
+    - https://github.com/crushndent/comqtt/releases/download/comqtt-0.5.0/comqtt-0.5.0.tgz
+    version: 0.5.0
+generated: "2026-10-29T00:01:22.2474813Z"
